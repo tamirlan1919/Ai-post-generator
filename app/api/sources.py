@@ -5,7 +5,7 @@ from app.repository.source_repo import SourceRepository
 from app.schemas import SourceCreate, SourceUpdate, SourceResponse, MessageResponse
 
 
-router = APIRouter(prefix='api/v1/sources', tags=['Sources'])
+router = APIRouter(prefix='/api/v1/sources', tags=['Sources'])
 
 
 @router.post('/', response_model=SourceResponse,
@@ -44,7 +44,7 @@ async def get_list_sources(
     :return:
     """
     repo = SourceRepository(session)
-    return repo.get_all(enabled_only=enabled_only)
+    return await repo.get_all(enabled_only=enabled_only)
 
 
 @router.get('/{source_id}', response_model=SourceResponse,
@@ -86,7 +86,7 @@ async def update_source(
     return source
 
 
-@router.default('/{source_id}', response_model=SourceResponse,
+@router.delete('/{source_id}', response_model=SourceResponse,
               summary='Удалить источник')
 async def update_source(
     source_id: int,

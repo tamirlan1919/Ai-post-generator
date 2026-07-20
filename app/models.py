@@ -59,7 +59,7 @@ class NewsItem(Base):
     )
 
     __table_args__ = (
-        Index('ix_news_unprocessed_recent', 'is_processed', 'published_at')
+        Index('ix_news_unprocessed_recent', 'is_processed', 'published_at'),
     )
 
     @staticmethod

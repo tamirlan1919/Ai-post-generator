@@ -59,9 +59,16 @@ class RSSParser:
             news_id = NewsItem.make_id(url=link, title=title, source=self.source_name)
             results.append(
                 {
-                'id': news_id
-
+                    'id': news_id,
+                    'title': title,
+                    'url': link or None,
+                    'summary': summary,
+                    'raw_text': None,
+                    'source_id': self.source_id,
+                    'source_name': self.source_name,
+                    'published_at': published_at,
+                    'is_processed': False
                 }
             )
-
+            #log TODO
             return results
