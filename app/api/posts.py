@@ -6,6 +6,8 @@ from app.models import Post, PostStatus
 from app.schemas import PostResponse
 from typing import Optional
 
+from app.repository.post_repo import  PostRepository
+
 router = APIRouter(prefix='/api/v1/posts', tags=['Posts'])
 
 
@@ -27,6 +29,13 @@ async def list_posts(
     return list(result.scalars().all())
 
 
+@router.get('/stats')
+async def get_posts_stats(
+        session: AsyncSession = Depends(get_session)
+):
+    return await PostRepository(session).get_stats()
+
+
 @router.get('/{post_id}', response_model=PostResponse)
 async def get_post(
         post_id: int,
@@ -36,3 +45,7 @@ async def get_post(
     if post is None:
         raise HTTPException(status_code=404, detail=f'Пост {post_id} не найден')
     return post
+
+
+
+

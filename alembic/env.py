@@ -5,20 +5,28 @@ from sqlalchemy import pool
 
 from alembic import context
 
+from app.config import settings
+from app.database import Base
+import app.models  # noqa: F401 — регистрирует модели в Base.metadata
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+# Приложение использует asyncpg, а Alembic запускается синхронно через
+# уже установленный psycopg2. URL берём из .env, секреты в alembic.ini не храним.
+sync_database_url = settings.database_url.replace(
+    "postgresql+asyncpg://",
+    "postgresql+psycopg2://",
+    1,
+)
+config.set_main_option("sqlalchemy.url", sync_database_url.replace("%", "%%"))
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
-from app.database import Base
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,

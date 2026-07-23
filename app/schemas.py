@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional, Literal
-from pydantic import BaseModel, Field, HttpUrl, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class SourceCreate(BaseModel):
@@ -8,6 +8,17 @@ class SourceCreate(BaseModel):
     source_type: Literal['rss', 'telegram']
     url: str = Field(..., min_length=1, max_length=500)
     enabled: bool = Field(default=True)
+
+    @field_validator('url')
+    @classmethod
+    def validate_url_format(cls, v: str, info) -> str:
+        value = v.strip()
+        source_type = info.data.get('source_type')
+        if source_type == 'rss' and not value.startswith(('http://', 'https://')):
+            raise ValueError('URL для RSS-источника должен начинаться с http/https')
+        if source_type == 'telegram' and not value.startswith('@'):
+            raise ValueError('Username для Telegram должен начинаться с @')
+        return value
 
 
 class SourceUpdate(BaseModel):
@@ -34,7 +45,10 @@ class KeywordCreate(BaseModel):
     @field_validator('word')
     @classmethod
     def lowercase_word(cls, v: str) -> str:
-        return v.lower().strip()
+        value = v.lower().strip()
+        if not value:
+            raise ValueError('Ключевое слово не может быть пустым')
+        return value
 
 
 class KeywordResponse(BaseModel):
@@ -46,12 +60,13 @@ class KeywordResponse(BaseModel):
     model_config = {'from_attributes': True}
 
 
-class Post(BaseModel):
+class PostResponse(BaseModel):
     id: int
     news_id: str
     generated_text: str
     status: str
     published_at: Optional[datetime]
+    error_message: Optional[str]
     created_at: datetime
     model_config = {'from_attributes': True}
 
@@ -63,3 +78,13 @@ class PaginationParams(BaseModel):
 
 class MessageResponse(BaseModel):
     message: str
+
+
+class GenerationRequest(BaseModel):
+    title: str = Field(..., max_length=500)
+    body: str = Field(..., min_length=20, max_length=20_000)
+
+
+class GenerationResponse(BaseModel):
+    generated_text: str
+    char_count: int

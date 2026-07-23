@@ -2,7 +2,7 @@ import asyncio
 import logging
 from celery_worker import celery_app
 from app.config import settings
-from app.database import  AsyncSessionLocal
+from app.database import AsyncSessionLocal
 
 
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ def get_sync_session():
     name='tasks.parse_rss_source',
     max_retries=3,
     default_retry_delay=60,
-    time_limit = 120
+    time_limit=120
 )
 def parse_rss_source(self, source_id: int, source_name: str, url: str):
     async def _run() -> int:
@@ -37,12 +37,14 @@ def parse_rss_source(self, source_id: int, source_name: str, url: str):
         async with get_sync_session() as session:
             repo = NewsRepository(session)
             saved = await repo.save_batch(items)
+            logger.info(f'[RSS] source={source_id} сохранено новых: {saved}/{len(items)}')
             return saved
 
     try:
         return asyncio.run(_run())
-    except Exception as e:
-        raise self.retry(exc=e)
+    except Exception as exc:
+        logger.error(f'[RSS] Ошибка source={source_id}: {exc}', exc_info=True)
+        raise self.retry(exc=exc)
 
 
 
@@ -50,8 +52,8 @@ def parse_rss_source(self, source_id: int, source_name: str, url: str):
     bind=True,
     name='tasks.parse_telegram_source',
     max_retries=2,
-    default_retry_delay=60,
-    time_limit = 120
+    default_retry_delay=120,
+    time_limit=180
 )
 def parse_telegram_source(self, source_id: int, source_name: str, channel: str):
     async def _run() -> int:
@@ -59,9 +61,9 @@ def parse_telegram_source(self, source_id: int, source_name: str, channel: str):
         from app.news_parser.telegram import TelegramChannelParser
         from app.repository.news_repo import NewsRepository
 
-        clinet = await get_telegram_client()
+        client = await get_telegram_client()
         parser = TelegramChannelParser(
-            clinet=clinet,
+            client=client,
             source_id=source_id,
             source_name=source_name,
             channel_username=channel,
@@ -75,12 +77,14 @@ def parse_telegram_source(self, source_id: int, source_name: str, channel: str):
         async with get_sync_session() as session:
             repo = NewsRepository(session)
             saved = await repo.save_batch(items)
+            logger.info(f'[TG] channel={channel} сохранено новых: {saved}/{len(items)}')
             return saved
 
     try:
         return asyncio.run(_run())
-    except Exception as e:
-        raise self.retry(exc=e)
+    except Exception as exc:
+        logger.error(f'[TG] Ошибка channel={channel}: {exc}', exc_info=True)
+        raise self.retry(exc=exc)
 
 
 @celery_app.task(name='tasks.parse_all_sources')
@@ -109,5 +113,6 @@ def parse_all_sources():
                 source_name=source.name,
                 channel=source.url
             )
-    logger.info(f'[pipeline] Поставлено в очередь {len(sources)} задач')
-    return len(sources)
+    queued = sum(source.source_type in {'rss', 'telegram'} for source in sources)
+    logger.info(f'[pipeline] Поставлено в очередь {queued} задач')
+    return queued

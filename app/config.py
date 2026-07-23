@@ -8,8 +8,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 class Settings(BaseSettings):
-    database_url: str = Field(..., description='postgresql+asyncpg://user:pass@host_db')
-    rabbit_url: str = Field(default='amqp://guest:guest@rabbitmq:5672', description='URL брокера RabbotMQ')
+    database_url: str = Field(..., description='postgresql+asyncpg://user:pass@host/db')
+    rabbit_url: str = Field(default='amqp://guest:guest@rabbitmq:5672//', description='URL брокера RabbitMQ')
     redis_url: str = Field(default='redis://redis:6379/0', description='Redis для хранения результатов Celery')
 
     #tg

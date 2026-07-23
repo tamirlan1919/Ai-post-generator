@@ -77,7 +77,7 @@ async def update_source(
     session: AsyncSession = Depends(get_session)
 ):
     repo = SourceRepository(session)
-    source = await repo.update(source_id=source_id)
+    source = await repo.update(source_id=source_id, data=data)
     if source is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -86,9 +86,9 @@ async def update_source(
     return source
 
 
-@router.delete('/{source_id}', response_model=SourceResponse,
-              summary='Удалить источник')
-async def update_source(
+@router.delete('/{source_id}', response_model=MessageResponse,
+               summary='Удалить источник')
+async def delete_source(
     source_id: int,
     session: AsyncSession = Depends(get_session)
 ):
@@ -102,5 +102,4 @@ async def update_source(
     return MessageResponse(
         message=f'Источник {source_id} удален'
     )
-
 

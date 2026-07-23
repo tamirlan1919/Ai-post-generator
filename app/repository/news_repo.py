@@ -1,8 +1,9 @@
-from datetime import datetime, timezone, timedelta
+from datetime import timedelta
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert  # для INSERT ON CONFLICT
 from app.models import NewsItem
+from app.utils.datetime import utc_now_naive
 from typing import Optional
 
 
@@ -54,7 +55,7 @@ class NewsRepository:
         max_age_hours — не берём новости старше N часов.
         Старые новости уже неактуальны для Telegram-канала.
         """
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=max_age_hours)
+        cutoff = utc_now_naive() - timedelta(hours=max_age_hours)
         result = await self.session.execute(
             select(NewsItem)
             .where(and_(

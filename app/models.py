@@ -1,10 +1,13 @@
+import hashlib
 from datetime import datetime
+from enum import Enum as PyEnum
+from typing import Optional
+
 from sqlalchemy import (String, Text, Boolean, DateTime,
                         Integer, Index, UniqueConstraint, func, ForeignKey)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.database import Base
-from enum import Enum as PyEnum
-import hashlib
 
 
 class Source(Base):
@@ -28,7 +31,7 @@ class Keyword(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     word: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
-    pattern: Mapped[str] = mapped_column(String(200), nullable=True)
+    pattern: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
@@ -38,9 +41,9 @@ class NewsItem(Base):
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
     title: Mapped[str] = mapped_column(String(500), nullable=False)
-    url: Mapped[str] = mapped_column(String(500), nullable=True)
-    summary: Mapped[str] = mapped_column(Text, nullable=True)
-    raw_text:  Mapped[str or None] = mapped_column(Text, nullable=True)
+    url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    raw_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     source_id: Mapped[int] = mapped_column(
         ForeignKey('sources.id'),
        nullable=False,
@@ -53,7 +56,7 @@ class NewsItem(Base):
     source: Mapped['Source'] = relationship(
         back_populates='news_items'
     )
-    post: Mapped['Post'] = relationship(
+    post: Mapped[Optional['Post']] = relationship(
         back_populates='news_item',
         uselist=False
     )
@@ -63,7 +66,7 @@ class NewsItem(Base):
     )
 
     @staticmethod
-    def make_id(url: str or None, title: str, source: str) -> str:
+    def make_id(url: Optional[str], title: str, source: str) -> str:
         content = url or f'{title}:{source}'
         return hashlib.md5(content.encode()).hexdigest()
 
@@ -91,13 +94,14 @@ class Post(Base):
         nullable=False,
         index=True
     )
-    published_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    published_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
     news_item: Mapped['NewsItem'] = relationship(
         back_populates='post'
     )
 
-    __talbe_args__ = (
+    __table_args__ = (
         UniqueConstraint('news_id', name='uq_post_news_id'),
     )

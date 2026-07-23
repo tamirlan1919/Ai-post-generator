@@ -3,6 +3,7 @@ import logging
 from datetime import datetime, timezone
 from bs4 import BeautifulSoup
 from app.models import NewsItem
+from app.utils.datetime import utc_now_naive, to_naive_utc
 
 
 logger = logging.getLogger(__name__)
@@ -13,15 +14,16 @@ MAX_SUMMARY_LEN = 1000
 def _clean_html(html_text: str) -> str:
     if not html_text:
         return ''
-    return BeautifulSoup(html_text, 'lxml').get_text(separator=' ').strip()
+    text = BeautifulSoup(html_text, 'lxml').get_text(separator=' ')
+    return ' '.join(text.split())
 
 
 def _parse_date(entry) -> datetime:
-    pub_date = entry.get('pubDate')
-    if pub_date:
-        return datetime(**pub_date, tzinfo=timezone.utc)
+    parsed_date = entry.get('published_parsed') or entry.get('updated_parsed')
+    if parsed_date:
+        return to_naive_utc(datetime(*parsed_date[:6], tzinfo=timezone.utc))
     logger.warning(f'Нет даты публикации для {entry.get("title")}')
-    return datetime.now(timezone.utc)
+    return utc_now_naive()
 
 
 class RSSParser:
@@ -32,22 +34,23 @@ class RSSParser:
         self.max_items = max_items
 
     def parse(self) -> list[dict]:
-        logger.info(f'RSS Парсим: {self.url}')
+        logger.info(f'[RSS] Парсим: {self.url}')
         feed = feedparser.parse(self.url)
         status = getattr(feed, 'status', 200)
         if status not in (200, 301, 302):
+            logger.error(f'[RSS] HTTP {status} для {self.url}')
             return []
         if feed.bozo:
-            logger.warning()
+            logger.warning(f'[RSS] Невалидный XML: {self.url} — {feed.bozo_exception}')
         results = []
         for entry in feed.entries[:self.max_items]:
-            title = entry.get('title').strip()
+            title = (entry.get('title') or '').strip()
             link = entry.get('link', '')
 
             if not title:
                 continue
 
-            raw_summary = entry.get('summary') or entry.get('description')
+            raw_summary = entry.get('summary') or entry.get('description') or ''
 
             summary = _clean_html(raw_summary)[:MAX_SUMMARY_LEN]
 
@@ -70,5 +73,5 @@ class RSSParser:
                     'is_processed': False
                 }
             )
-            #log TODO
-            return results
+        logger.info(f'[RSS] Получено {len(results)} записей из {self.url}')
+        return results
